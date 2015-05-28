@@ -1,4 +1,7 @@
-#include <Rcpp.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+//#include <Rcpp.h>
+#include <RcppArmadillo.h>
 using namespace Rcpp;
 
 // [[Rcpp::export(.commclassesKernelRcpp)]]
@@ -6,24 +9,39 @@ List commclassesKernel(NumericMatrix P){
   int m = P.ncol(), n;
   String stateNames = rownames(P);
   NumericMatrix T(m), b;
-  int a, old, newVal, i = 0;
-  double sum, c;
+  int a, d, old, newSum, i = 0;
+  double oldSum, c;
   while(i <= m) {
     a = i;
     b = NumericMatrix(1, m);
     b(0, i) = 1;
 //    Rf_PrintValue(b);
     old = 1;
-    newVal = 0;
-    sum = 0.0;
-//    while(old != newVal) {
+    newSum = 0;
+    oldSum = 0.0;
+    while(old != newSum) {
       for(int j = 0; j < b.ncol(); j ++)
-        if(b(0, j) > 0) sum += b(0, j);
-      old = sum;
+        if(b(0, j) > 0) oldSum += b(0, j);
+      old = oldSum;
 //      n = size(a)[2];
-      NumericMatrix matr(P[a, ], ncol = m, nrow = n);
-//        c = matr.colSums();
-//    }
+      n = 1;
+      NumericVector r = P(a, _);
+//      std::cout << r[0] << std::endl;
+      Rf_PrintValue(r);
+      NumericMatrix matr(m, n, r.begin());
+//      Rf_PrintValue(matr);
+        c = sum(matr.column(0));
+        //  		d <- find(c)
+        d = c;
+//			n <- size(d)[2]
+//			b[1,d] <- ones(1,n)
+//        for(int j = 0; j < n; j++) 
+//          b[0, j] = 1;
+//			new <- sum(find(b>0))
+        for(int j = 0; j < b.ncol(); j ++)
+          if(b(0, j) > 0) newSum += b(0, j);
+			  a = d;
+    }
     i++;
   }
 //  m <- ncol(P)
@@ -64,7 +82,7 @@ List commclassesKernel(NumericMatrix P){
 
 
 //returns the underlying communicating classes
-// [[Rcpp::export(.communicatingClasses)]]
+// [[Rcpp::export(.communicatingClassesRcpp)]]
 List communicatingClasses(NumericMatrix adjMatr)
 {
   List classesList;
@@ -87,6 +105,70 @@ List communicatingClasses(NumericMatrix adjMatr)
 //  }
 //  return(classesList)
   return classesList;
+}
+
+// greatest common denominator: to be moved in Rcpp
+// [[Rcpp::export(.gcdRcpp)]]
+double gcd (int f, int s) {
+  int g, n, N, u;
+  f = abs(f);
+  s = abs(s);
+    
+  n = std::min(f,s);
+  N = std::max(f,s);
+  
+	if (n==0) {
+		g=N;
+	}
+	else {
+		u=1;
+		while (u!=0) {
+			u=N%n;
+			if (u==0) {
+				g=n;
+			}
+			N=n;
+			n=u;
+		}
+	}
+	return g;
+}
+
+/*
+arma::mat expm(arma::mat x) {
+    arma::mat z(x.n_rows, x.n_cols);
+    (*expmat)(x.begin(), x.n_rows, z.begin(), Ward_2);
+    return z;
+}
+*/
+
+//communicating states
+// [[Rcpp::export(.commStatesFinderRcpp)]]
+NumericMatrix commStatesFinder(NumericMatrix matr)
+{
+  //Reachability matrix
+  double dimMatr = matr.nrow();
+  int nrow = matr.nrow();
+  int ncol = matr.ncol();
+
+  arma::mat Z(nrow, ncol);
+  arma::mat X(matr.begin(), nrow, ncol, false);
+  arma::mat temp = arma::eye(dimMatr, ncol) + arma::sign(X);
+  // raise to the power (dimMatr - 1)
+  // temp = pow(temp, dimMatr - 1);
+  
+  for(int i = 0; i < nrow; i ++) 
+    for(int j = 0; j < ncol; j ++) {
+      
+//      double temp = (eye(dimMatr) + Z(i, j)) % (dimMatr - 1);  
+      arma::mat m;
+    }
+//  temp<-(eye(dimMatr)+Z)%^%(dimMatr-1)
+//  double temp = (eye(dimMatr) + sign(matr)) % (dimMatr - 1);
+
+  arma::mat R = arma::sign(temp);
+
+  return wrap(R);
 }
 
 /*
@@ -249,5 +331,25 @@ period<-function(object) {
 library(matlab)
 i <- 1
 size(i)
-.commclassesKernelRcpp(zeros(2))
+n <- size(i)[2]
+n
+zeros(1, 3)
+b<-zeros(1,4)
+b[1,1]<-1
+b[1, 3:4] <- ones(1, 2)
+b
+matr <- ones(3, 4)
+c <- colSums(matr)
+c
+d <- find(c)
+d
+size(d)
+n <- size(d)[2]
+n
+dim(matr)
+dim(matr)[1]
+sign(matr)
+
+.commStatesFinderRcpp(matr)
+#.commclassesKernelRcpp(zeros(2))
 */
