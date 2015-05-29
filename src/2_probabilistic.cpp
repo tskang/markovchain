@@ -44,6 +44,9 @@ List commclassesKernel(NumericMatrix P){
     }
     i++;
   }
+  List out;
+  return out;
+}
 //  m <- ncol(P)
 //	stateNames <- rownames(P)
 //	T <- zeros(m) 
@@ -76,9 +79,6 @@ List commclassesKernel(NumericMatrix P){
 //	names(v) <- stateNames
 //	out <- list(C=C,v=v)
 //	return(out)
-  List out;
-  return out;
-}
 
 
 //returns the underlying communicating classes
@@ -133,129 +133,7 @@ double gcd (int f, int s) {
 	}
 	return g;
 }
-
-/*
-arma::mat expm(arma::mat x) {
-    arma::mat z(x.n_rows, x.n_cols);
-    (*expmat)(x.begin(), x.n_rows, z.begin(), Ward_2);
-    return z;
-}
-*/
-
-//communicating states
-// [[Rcpp::export(.commStatesFinderRcpp)]]
-NumericMatrix commStatesFinder(NumericMatrix matr)
-{
-  //Reachability matrix
-  double dimMatr = matr.nrow();
-  int nrow = matr.nrow();
-  int ncol = matr.ncol();
-
-  arma::mat Z(nrow, ncol);
-  arma::mat X(matr.begin(), nrow, ncol, false);
-  arma::mat temp = arma::eye(dimMatr, ncol) + arma::sign(X);
-  // raise to the power (dimMatr - 1)
-  // temp = pow(temp, dimMatr - 1);
-  
-  for(int i = 0; i < nrow; i ++) 
-    for(int j = 0; j < ncol; j ++) {
-      
-//      double temp = (eye(dimMatr) + Z(i, j)) % (dimMatr - 1);  
-      arma::mat m;
-    }
-//  temp<-(eye(dimMatr)+Z)%^%(dimMatr-1)
-//  double temp = (eye(dimMatr) + sign(matr)) % (dimMatr - 1);
-
-  arma::mat R = arma::sign(temp);
-
-  return wrap(R);
-}
-
-/*
-#@ Tae: to be fully moved in Rcpp
-#communicating states
-.commStatesFinder<-function(matr)
-{
-  #Reachability matrix
-  dimMatr<-dim(matr)[1]
-  Z<-sign(matr)
-  temp<-(eye(dimMatr)+Z)%^%(dimMatr-1)
-  R<-sign(temp)
-  return(R)
-}
-
-#@ Tae: its upt to you to decide to move or to keep in R just calling the .commStatesFinder Rcpp version
-
-is.accessible<-function(object, from, to)
-{
-  out<-FALSE
-  statesNames<-states(object)
-  fromPos<-which(statesNames==from)
-  toPos<-which(statesNames==to)
-  R<-.commStatesFinder(object@transitionMatrix)
-  if(R[fromPos,toPos]==TRUE) out<-TRUE
-  return(out)
-}
-
-#@ Tae: as above
-
-#a markov chain is irreducible if is composed by only one communicating class
-is.irreducible<-function(object)
-{
-  out<-FALSE
-  tocheck<-.communicatingClasses(.commclassesKernel(object@transitionMatrix)$C)
-  if(length(tocheck)==1) out<-TRUE
-  return(out)
-}
-
-#@ Tae: fully move in Rcpp
-
-.summaryKernel<-function(object)
-{
-  matr<-object@transitionMatrix
-  temp<-.commclassesKernel(matr)
-  communicatingClassList<-.communicatingClasses(temp$C)
-  transientStates<-names(which(temp$v==FALSE))
-  closedClasses<-list()
-  transientClasses<-list()
-  for(i in 1:length(communicatingClassList))
-  {
-    class2Test<-communicatingClassList[[i]]
-    if(length(intersect(class2Test,transientStates))>0) transientClasses[[length(transientClasses)+1]]<-class2Test else closedClasses[[length(closedClasses)+1]]<-class2Test
-  }
-  summaryMc<-list(closedClasses=closedClasses, 
-                  transientClasses=transientClasses)
-  return(summaryMc)
-}
-
-#@ Tae: move in Rcpp
-#here the kernel function to compute the first passage
-.firstpassageKernel<-function(P,i,n){
-  G<-P
-  H <- matrix(NA, ncol=dim(P)[2], nrow=n) #here Thoralf suggestion
-  H[1,]<-P[i,] #initializing the first row
-  E<-1-diag(size(P)[2])
-  for (m in 2:n) {
-    G<-P%*%(G*E)
-    #H<-rbind(H,G[i,]) #removed thanks to Thoralf 
-    H[m,] <- G[i,] #here Thoralf suggestion
-  }
-  return(H)
-}
-
-firstPassage<-function(object,state,n)
-{
-  P<-object@transitionMatrix
-  stateNames<-states(object)
-  i<-which(stateNames==state)
-  outMatr<-.firstpassageKernel(P=P,i=i,n=n)
-  colnames(outMatr)<-stateNames
-  rownames(outMatr)<-1:n
-  return(outMatr)
-}
-#periodicity
-
-
+/* 
 # greatest common denominator: to be moved in Rcpp
 .gcd = function(f,s) {
   
@@ -263,7 +141,7 @@ firstPassage<-function(object,state,n)
   s <- abs(s)
   
   n <- min(f,s)
-	N <- max(f,s)
+  N <- max(f,s)
   
 	if (n==0) {
 		g=N
@@ -281,49 +159,136 @@ firstPassage<-function(object,state,n)
 	}
 	return(g)
 }
+*/
 
-#@TAE: probably could be moved in Rcpp
+arma::mat _pow(arma::mat A, int n) {
+  arma::mat R = arma::eye(A.n_rows, A.n_rows);
+  for(int i = 0; i < n; i ++) 
+    R = A*R;
+  return R;
+}
 
-#function to  get the period of a DTMC
-period<-function(object) {
-	check<-is.irreducible(object)
-	if(check==FALSE){
-		warning("The matrix is not irreducible")
-		return(0)
-	} else {
-	P<-object@transitionMatrix
-	n=size(P,2)
-	v=zeros(1,n)
-	v[1,1]=1
-	w=numeric()
-	d=0
-	T=c(1)
-	m=size(T,2)
-	while (m>0 & d!=1) {
-		i <- T[1]
-		T <- T[-1]
-		w <- c(w,i)
-		j <- 1
-		while (j<=n) {
-			if (P[i,j]>0) {
-				r=c(w,T)
-				k=sum(r==j)
-				if (k>0) {
-					b=v[1,i]+1-v[1,j]
-					d=.gcd(d,b)
-				}
-				else {
-					T=c(T,j)
-					v[1,j]=v[1,i]+1
-				}
-			}
-			j=j+1
-		}
-		m=size(T,2)
-	}
-	v=v%%d
-	return(d)
-	}
+//communicating states
+// [[Rcpp::export(.commStatesFinderRcpp)]]
+NumericMatrix commStatesFinder(NumericMatrix matr)
+{
+  //Reachability matrix
+  int dimMatr = matr.nrow();
+  arma::mat X(matr.begin(), dimMatr, dimMatr, false);
+  arma::mat temp = arma::eye(dimMatr, dimMatr) + arma::sign(X);
+  temp = _pow(temp, dimMatr - 1);
+  arma::mat m;
+  arma::mat R = arma::sign(temp);
+  return wrap(R);
+}
+  /*
+#@ Tae: to be fully moved in Rcpp
+#communicating states
+.commStatesFinder<-function(matr)
+{
+  #Reachability matrix
+  dimMatr<-dim(matr)[1]
+  Z<-sign(matr)
+  temp<-(eye(dimMatr)+Z)%^%(dimMatr-1)
+  R<-sign(temp)
+  return(R)
+}
+*/
+
+bool _intersected(CharacterVector v1, CharacterVector v2) {
+  CharacterVector::iterator first1 = v1.begin();
+  CharacterVector::iterator last1 = v1.end();
+  CharacterVector::iterator first2 = v2.begin();
+  CharacterVector::iterator last2 = v2.end();
+  while(first1!=last1 && first2!=last2) {
+    if(*first1 == *first2) return true;
+    else if(*first1 < *first2) ++first1;
+    else ++first2;    
+  }
+  return false;
+}
+
+// [[Rcpp::export(.summaryKernelRcpp)]]
+List summaryKernel(S4 object)
+{
+  NumericMatrix matr = object.slot("transitionMatrix");
+  List temp = commclassesKernel(matr);
+  List communicatingClassList = communicatingClasses(temp["C"]);
+  List v = temp["v"];
+  CharacterVector ns = v.names();
+  CharacterVector transientStates; //<-names(which(temp$v==FALSE))
+  for(int i = 0; i < v.size(); i++) {
+    if(v[i] == false)
+      transientStates.push_back(ns[i]);
+  }
+  List closedClasses, transientClasses;
+
+  for(int i = 0; i < communicatingClassList.size(); i ++)
+  {
+    CharacterVector class2Test = communicatingClassList[i];
+    if(_intersected(class2Test,transientStates)) 
+        transientClasses.push_back(class2Test); 
+      else 
+        closedClasses.push_back(class2Test);
+  }
+  List summaryMc = List::create(_["closedClasses"] = closedClasses,
+                                _["transientClasses"] = transientClasses);
+  return(summaryMc);
+}
+/*
+#@ Tae: fully move in Rcpp
+.summaryKernel<-function(object)
+{
+  matr<-object@transitionMatrix
+  temp<-.commclassesKernel(matr)
+  communicatingClassList<-.communicatingClasses(temp$C)
+  transientStates<-names(which(temp$v==FALSE))
+  closedClasses<-list()
+  transientClasses<-list()
+  for(i in 1:length(communicatingClassList))
+  {
+    class2Test<-communicatingClassList[[i]]
+    if(length(intersect(class2Test,transientStates))>0) 
+      transientClasses[[length(transientClasses)+1]]<-class2Test 
+    else 
+      closedClasses[[length(closedClasses)+1]]<-class2Test
+  }
+  summaryMc<-list(closedClasses=closedClasses, 
+                  transientClasses=transientClasses)
+  return(summaryMc)
+}
+*/
+
+//here the kernel function to compute the first passage
+// [[Rcpp::export(.firstpassageKernelRcpp)]]
+NumericMatrix firstpassageKernel(NumericMatrix P, int i, int n){
+  arma::mat G(P.begin(), P.nrow(), P.ncol());
+  arma::mat Pa = G;
+  arma::mat H(n, P.ncol()); //here Thoralf suggestion
+  H.insert_rows(0, G.row(0)); //initializing the first row  
+  arma::mat E = 1 - arma::eye(P.ncol(), P.ncol());
+  
+  for (int m = 1; m < n; m++) {
+    G = Pa * (G*E);
+    //H<-rbind(H,G[i,]) //removed thanks to Thoralf 
+    H.insert_rows(m, G.row(i)); //here Thoralf suggestion
+  }
+  return wrap(H);
+}
+/*
+#@ Tae: move in Rcpp
+#here the kernel function to compute the first passage
+.firstpassageKernel<-function(P,i,n){
+  G<-P
+  H <- matrix(NA, ncol=dim(P)[2], nrow=n) #here Thoralf suggestion
+  H[1,]<-P[i,] #initializing the first row
+  E<-1-diag(size(P)[2])
+  for (m in 2:n) {
+    G<-P%*%(G*E)
+    #H<-rbind(H,G[i,]) #removed thanks to Thoralf 
+    H[m,] <- G[i,] #here Thoralf suggestion
+  }
+  return(H)
 }
 */
 
@@ -333,12 +298,7 @@ i <- 1
 size(i)
 n <- size(i)[2]
 n
-zeros(1, 3)
-b<-zeros(1,4)
-b[1,1]<-1
-b[1, 3:4] <- ones(1, 2)
-b
-matr <- ones(3, 4)
+matr <- ones(3, 3)
 c <- colSums(matr)
 c
 d <- find(c)
@@ -349,7 +309,11 @@ n
 dim(matr)
 dim(matr)[1]
 sign(matr)
+1-diag(3)
+matr[2, 1] = 21
+matr[2, 2] = 22
+matr[[2]]
 
-.commStatesFinderRcpp(matr)
+#.commStatesFinderRcpp(matr)
 #.commclassesKernelRcpp(zeros(2))
 */
