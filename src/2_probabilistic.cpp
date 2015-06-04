@@ -13,121 +13,105 @@ arma::vec colSums(arma::mat X){
    return(out);
 }
 
+//List commclassesKernel(NumericMatrix P){
 // [[Rcpp::export(.commclassesKernelRcpp)]]
 extern "C" SEXP commclassesKernel(NumericMatrix P){
+//  Rf_PrintValue(P);
   unsigned int m = P.ncol(), n;
   CharacterVector stateNames = rownames(P);
-//  NumericMatrix T(m);
-//  NumericVector b;
-  arma::vec a, b, c, d;
-  arma::mat T = arma::zeros(m);
-  unsigned int oldSum, newSum, i = 0;
-  while(i <= m) {
-    a = i;
+  std::vector<int> a;
+  arma::vec b, c, d;
+  arma::mat T = arma::zeros(m, m);
+//  std::cout << T << std::endl;
+  unsigned int i = 0;
+  int oldSum, newSum, ai;
+  while(i < m) {
+    a.resize(0);
+    a.push_back(i);
+//    a.resize(1);
+//    a[0] = i;
+//    std::cout << "i = " << i << ", a=" << a ;
 //    b = NumericVector(m);
-    b = arma::vec(m);
+    b = arma::zeros<arma::vec>(m);
     b[i] = 1;
-//    Rf_PrintValue(b);
+//    std::cout << "b = " << b << ", b[i]=" << b[i] << std::endl;
     newSum = 0;
     oldSum = 1;
+//    bool first = true;
     while(oldSum != newSum) {
       oldSum = 0;
-//      for(arma::vec::iterator it = b.begin(); it < b.end(); it ++)
-//        if(*it > 0) oldSum += *it;
-      oldSum = sum(find(b > 0));
+      for(int j = 0; j < b.size(); j ++)
+        if(b[j] > 0) oldSum += (j + 1);
+//      std::cout << "b = " << b << std::endl;
+//      std::cout << "find(b>0) = " << find(b > 0) << std::endl;
       n = a.size();
-      NumericVector r, temp; // = P(i, _);
-//      arma::vec r, temp;
+//      std::cout << "oldSum = " << oldSum << ", n=" << n << std::endl;
+      NumericVector temp; 
+      NumericMatrix matr(n, m);
       for(unsigned int j = 0; j < n; j ++) {
         temp = P.row(a[j]);
-        for(NumericVector::iterator it = temp.begin(); it != temp.end(); it ++)
-          r.push_back(*it);
-//        r = P(a[j], _);
-//        r.insert(r.end(), P.row(a[j]));
+//        Rcout << "temp a[" << j << "] " << a[j] << " = ";
+//        Rf_PrintValue(temp);
+        for(int k = 0; k < temp.size(); k++) 
+          matr(j, k) = temp[k];
       }
-//      std::cout << r[0] << std::endl;
-//      Rf_PrintValue(r);
-      NumericMatrix matr(n, m, r.begin());
-//      arma::mat matr(n, m, r.begin());
+//      Rcout << "matr = " << std::endl;
 //      Rf_PrintValue(matr);
-      c = sum(matr);
+      c = arma::zeros<arma::vec>(m);
+      for(int j = 0; j < m; j++) 
+        for(int k = 0; k < n; k++)
+          c[j] += matr(k, j);
 //      c = colSums(matr);
-      arma::vec d = c;
-			n = d.size();
-      for(arma::vec::iterator it = d.begin(); it != d.end(); it++)
-        b[*it] = 1;
-//      b = arma::ones(1, n);
-//      for(int j = 0; j < n; j++) 
-//        b[d[j]] = 1;
+//      Rcout << "colSums = " << c << std::endl;
       newSum = 0;
-      for(arma::vec::iterator it = b.begin(); it != b.end(); it ++)
-        if(*it > 0) newSum += *it;
-//      for(int j = 0; j < b.size(); j ++)
-//        if(b[j] > 0) newSum += b[j];
-      newSum = sum(find(b > 0));
-	    a = d;
+      a.resize(0);
+//      Rcout << "a.size = " << a.size() << std::endl;
+      for(int j = 0; j < b.size(); j++) {
+        if(c[j] > 0) {
+          b[j] = 1; a.push_back(j);
+        }
+        if(b[j] > 0) newSum += (j + 1);
+      }
+//      Rcout << "a.size = " << a.size() << std::endl;
     }
-    T.insert_rows(i, b);
+    for(unsigned int j = 0; j < b.size(); j ++)
+      T(i, j) = b[j];
     i++;
   }
-
+  std::cout << "T = " << T << std::endl;
   arma::mat F = arma::trans(T);
-  NumericMatrix C;
+//  std::cout << "T = " << T.n_rows << " x " << T.n_cols << std::endl;
+//  std::cout << "F = " << F.n_rows << " x " << F.n_cols << std::endl;
+  LogicalMatrix C;
   arma::mat Ca(T.n_rows, T.n_cols);// = (T > 0);// & (F > 0);
-  for(i = 0; i < T.n_rows; i ++)
-    for(unsigned int j = 0; j < T.n_cols; j++)
+//  std::cout << "C created: " << Ca.n_rows << " x " << Ca.n_cols << std::endl;
+  for(i = 0; i < T.n_rows; i ++) {
+//   std::cout << "i = " << i << std::endl;
+   for(unsigned int j = 0; j < T.n_cols; j++) {
       Ca(i, j) = (T(i, j) > 0 && F(i, j) > 0);
+   }
+//   std::cout << "i end = " << i << std::endl;
+  }
+//  std::cout << "C filled" << std::endl;
   LogicalVector v(T.n_cols);
   arma::mat tC = Ca.t();
   arma::mat tT = T.t();
   unsigned int sums[tC.n_cols];
-//  arma::umat equalMat = (arma::trans(Ca) == arma::trans(T));
-//  arma::vec colsums = colSums(equalMat);
   for(unsigned int j = 0; j < T.n_cols; j++) {
     sums[j] = 0;
     for(i = 0; i < T.n_rows; i ++)
       if(tC(i, j) == tT(i, j)) sums[j] ++;
     v[j] = (sums[j] == m);
   }
-      
+  std::cout << "v created" << std::endl; 
+//  std::cout << "Ca: " << Ca << std::endl;
+  C = as<LogicalMatrix>(wrap(Ca));
   C.attr("dimnames") = List::create(stateNames, stateNames);
-//  C.names() = List::create(stateNames, stateNames);  
   v.names() = stateNames;
+  Rf_PrintValue(C);
+  Rf_PrintValue(v);
   return List::create(_["C"] = C, _["v"] = v);
 }
-//  m <- ncol(P)
-//	stateNames <- rownames(P)
-//	T <- zeros(m) 
-//	i <- 1
-//	while (i<=m) { 
-//		a=i 
-//		b<-zeros(1,m)
-//		b[1,i]<-1
-//		old<-1
-//		new<-0
-//		while (old != new) {
-//			old <- sum(find(b>0))
-//			n <- size(a)[2]
-//			matr <- matrix(as.numeric(P[a,]),ncol=m,nrow=n) #fix
-//			c <- colSums(matr)
-//			d <- find(c)
-//			n <- size(d)[2]
-//			b[1,d] <- ones(1,n)
-//			new <- sum(find(b>0))
-//			a<-d
-//		}
-//		T[i,] <- b
-//		i <- i+1 
-//	}
-//	F <- t(T)  
-//	C <- (T>0)&(F>0)
-//	v <- (apply(t(C)==t(T),2,sum)==m)
-//	colnames(C) <- stateNames
-//	rownames(C) <- stateNames
-//	names(v) <- stateNames
-//	out <- list(C=C,v=v)
-//	return(out)
-
 
 //returns the underlying communicating classes
 // [[Rcpp::export(.communicatingClassesRcpp)]]
@@ -135,31 +119,55 @@ List communicatingClasses(LogicalMatrix adjMatr)
 {
   int len = adjMatr.nrow();
   List classesList;
+//  Rf_PrintValue(adjMatr);
+//  Rf_PrintValue(rownames(adjMatr));
+  CharacterVector rnames = rownames(adjMatr);
   for(int i = 0; i < len; i ++) {
+    bool isNull = false;
     LogicalVector row2Check = adjMatr(i, _);
-    CharacterVector rnames = row2Check.names();
-    CharacterVector proposedCommClass;// = names(which(row2Check == true));
-    for(int j = 0; j < row2Check.size(); j++) 
-      if(row2Check[j] == true) 
-          proposedCommClass.push_back(rnames(j));
+//    Rf_PrintValue(row2Check);    
+    CharacterVector proposedCommClass;
+    for(int j = 0; j < row2Check.size(); j++) {
+      if(row2Check[j] == true) {
+        String rname = rnames[j];
+//        Rcout << (std::string)rname << std::endl;
+        proposedCommClass.push_back(rname);
+      }
+    }
     if (i > 0) {
       for(int j = 0; j < classesList.size(); j ++) {
         bool check = false;        
         CharacterVector cv = classesList[j];
+//        Rf_PrintValue(cv);
         std::set<std::string> s1, s2;
+//        std::cout << "before insert: " << cv.size() << " " << proposedCommClass.size() << std::endl;
         for(int k = 0; k < cv.size(); k ++) {
           s1.insert(as<std::string>(cv[k]));
-          s2.insert(as<std::string>(proposedCommClass[k]));
+//          std::cout << "s1 inserted " << cv[k] << std::endl;
+          if(proposedCommClass.size() > k) {
+            s2.insert(as<std::string>(proposedCommClass[k]));
+//            std::cout << "s2 inserted " << proposedCommClass[k] << std::endl;
+          }
         }
+//        for(std::set<std::string>::iterator it = s1.begin(); it != s1.end(); it++)
+//          std::cout << *it << " ";
+//        std::cout << std::endl;
+//        for(std::set<std::string>::iterator it = s2.begin(); it != s2.end(); it++)
+//          std::cout << *it << " ";
+//        std::cout << std::endl;
         check = std::equal(s1.begin(), s1.end(), s2.begin());
+//        std::cout << check << std::endl;
         if(check) {
-          proposedCommClass = R_NilValue; break;
+          isNull = true;
+          break;
         }
       }
     }
-    if(!Rf_isNull(proposedCommClass) && proposedCommClass.size() > 0) 
-      classesList.push_back(proposedCommClass);    
+//    if(!Rf_isNull(proposedCommClass) && proposedCommClass.size() > 0) 
+    if(!isNull) 
+      classesList.push_back(proposedCommClass);
   }
+  Rf_PrintValue(classesList);
   return classesList;
 }
 /*
@@ -381,6 +389,7 @@ c <- colSums(matr)
 c
 d <- find(c)
 d
+find(d > 1)
 a=i
 a
 a <- d
@@ -399,8 +408,6 @@ apply(t(matr) == t(matr), 2, sum) == 3
 
 #matr > 0
 #(matr > 0) & (matr < 0)
-#ones(2)
-#ones(1, 2)
 #dim(matr)
 #dim(matr)[1]
 #sign(matr)
@@ -409,6 +416,29 @@ apply(t(matr) == t(matr), 2, sum) == 3
 #matr[2, 2] = 22
 #matr[[2]]
 
+matr <- matrix(
+c(TRUE,  TRUE, FALSE, FALSE, FALSE
+,  TRUE,  TRUE, FALSE, FALSE, FALSE
+, FALSE, FALSE,  TRUE,  TRUE, FALSE
+, FALSE, FALSE,  TRUE,  TRUE, FALSE
+, FALSE, FALSE, FALSE, FALSE,  TRUE)
+, nrow = 5, ncol = 5, byrow =TRUE
+)
+dimnames(matr) <- list(c("a","b","c", "d", "e"), c("a","b","c", "d", "e"))
+              
+library(markovchain)
 #.commStatesFinderRcpp(matr)
-#.commclassesKernelRcpp(zeros(2))
+#.commclassesKernel(zeros(2))
+matr <- matrix(
+  c(0.0, 0.3333333, 0.0, 0.6666667, 0.0
+  , 0.5, 0.0000000, 0.0, 0.0000000, 0.5
+  , 0.0, 0.0000000, 0.5, 0.5000000, 0.0
+  , 0.0, 0.0000000, 0.5, 0.5000000, 0.0
+  , 0.0, 0.0000000, 0.0, 0.0000000, 1.0
+  ), nrow = 5, byrow = TRUE,
+  , dimnames = list(c("a","b","c", "d", "e"), c("a","b","c", "d", "e"))
+)
+.commclassesKernelRcpp(matr)
+#.communicatingClassesRcpp(matr)
+
 */
