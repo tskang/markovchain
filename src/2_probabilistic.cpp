@@ -78,7 +78,7 @@ extern "C" SEXP commclassesKernel(NumericMatrix P){
       T(i, j) = b[j];
     i++;
   }
-  std::cout << "T = " << T << std::endl;
+//  std::cout << "T = " << T << std::endl;
   arma::mat F = arma::trans(T);
 //  std::cout << "T = " << T.n_rows << " x " << T.n_cols << std::endl;
 //  std::cout << "F = " << F.n_rows << " x " << F.n_cols << std::endl;
@@ -103,13 +103,13 @@ extern "C" SEXP commclassesKernel(NumericMatrix P){
       if(tC(i, j) == tT(i, j)) sums[j] ++;
     v[j] = (sums[j] == m);
   }
-  std::cout << "v created" << std::endl; 
+//  std::cout << "v created" << std::endl; 
 //  std::cout << "Ca: " << Ca << std::endl;
   C = as<LogicalMatrix>(wrap(Ca));
   C.attr("dimnames") = List::create(stateNames, stateNames);
   v.names() = stateNames;
-  Rf_PrintValue(C);
-  Rf_PrintValue(v);
+//  Rf_PrintValue(C);
+//  Rf_PrintValue(v);
   return List::create(_["C"] = C, _["v"] = v);
 }
 
@@ -167,31 +167,9 @@ List communicatingClasses(LogicalMatrix adjMatr)
     if(!isNull) 
       classesList.push_back(proposedCommClass);
   }
-  Rf_PrintValue(classesList);
+//  Rf_PrintValue(classesList);
   return classesList;
 }
-/*
-.communicatingClasses<-function(adjMatr)
-{
-  len <- dim(adjMatr)[1]
-  classesList <- list()
-  for(i in 1:len)
-  {
-    row2Check <- adjMatr[i,]
-    proposedCommClass <- names(which(row2Check==TRUE))
-    if(i>1) 
-    {
-      for(j in 1:(length(classesList)))
-      {
-        check <- FALSE
-        check <- setequal(classesList[[j]],proposedCommClass)
-        if(check==TRUE) {proposedCommClass<-NULL; break}
-      }
-    }
-    if(!is.null(proposedCommClass)) classesList[[length(classesList)+1]]<-proposedCommClass
-  }
-  return(classesList)
-*/
 
 arma::mat _pow(arma::mat A, int n) {
   arma::mat R = arma::eye(A.n_rows, A.n_rows);

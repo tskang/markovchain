@@ -32,6 +32,7 @@
 	rownames(C) <- stateNames
 	names(v) <- stateNames
 	out <- list(C=C,v=v)
+#   print(out)
 	return(out)
 }
 
@@ -56,6 +57,7 @@
     }
     if(!is.null(proposedCommClass)) classesList[[length(classesList)+1]]<-proposedCommClass
   }
+  print(classesList)
   return(classesList)
 }
 
@@ -90,7 +92,8 @@ is.accessible<-function(object, from, to)
 is.irreducible<-function(object)
 {
   out<-FALSE
-  tocheck<-.communicatingClasses(.commclassesKernel(object@transitionMatrix)$C)
+  tocheck<-.communicatingClassesRcpp(.commclassesKernelRcpp(object@transitionMatrix)$C)
+#   tocheck<-.communicatingClasses(.commclassesKernel(object@transitionMatrix)$C)
   if(length(tocheck)==1) out<-TRUE
   return(out)
 }
