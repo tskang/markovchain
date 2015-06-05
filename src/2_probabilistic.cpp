@@ -1,17 +1,7 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 
-//#include <Rcpp.h>
 #include <RcppArmadillo.h>
 using namespace Rcpp;
-
-arma::vec colSums(arma::mat X){
-   int nCols = X.n_cols;
-   arma::vec out(nCols);
-   for(int i = 0; i < nCols; i++){
-      out(i) = sum(X.col(i));
-   }
-   return(out);
-}
 
 //List commclassesKernel(NumericMatrix P){
 // [[Rcpp::export(.commclassesKernelRcpp)]]
@@ -188,22 +178,10 @@ NumericMatrix commStatesFinder(NumericMatrix matr)
   arma::mat temp = arma::eye(dimMatr, dimMatr) + arma::sign(X);
   temp = _pow(temp, dimMatr - 1);
   arma::mat m;
-  arma::mat R = arma::sign(temp);
-  return wrap(R);
+  NumericMatrix R = wrap(arma::sign(temp));
+  R.attr("dimnames") = List::create(rownames(matr), colnames(matr));
+  return R;
 }
-/*
-#@ Tae: to be fully moved in Rcpp
-#communicating states
-.commStatesFinder<-function(matr)
-{
-  #Reachability matrix
-  dimMatr<-dim(matr)[1]
-  Z<-sign(matr)
-  temp<-(eye(dimMatr)+Z)%^%(dimMatr-1)
-  R<-sign(temp)
-  return(R)
-}
-*/
 
 bool _intersected(CharacterVector v1, CharacterVector v2) {
   CharacterVector::iterator first1 = v1.begin();
@@ -226,7 +204,7 @@ List summaryKernel(S4 object)
   List communicatingClassList = communicatingClasses(temp["C"]);
   List v = temp["v"];
   CharacterVector ns = v.names();
-  CharacterVector transientStates; //<-names(which(temp$v==FALSE))
+  CharacterVector transientStates; 
   for(int i = 0; i < v.size(); i++) {
     if(v[i] == false)
       transientStates.push_back(ns[i]);
@@ -245,62 +223,38 @@ List summaryKernel(S4 object)
                                 _["transientClasses"] = transientClasses);
   return(summaryMc);
 }
-/*
-#@ Tae: fully move in Rcpp
-.summaryKernel<-function(object)
-{
-  matr<-object@transitionMatrix
-  temp<-.commclassesKernel(matr)
-  communicatingClassList<-.communicatingClasses(temp$C)
-  transientStates<-names(which(temp$v==FALSE))
-  closedClasses<-list()
-  transientClasses<-list()
-  for(i in 1:length(communicatingClassList))
-  {
-    class2Test<-communicatingClassList[[i]]
-    if(length(intersect(class2Test,transientStates))>0) 
-      transientClasses[[length(transientClasses)+1]]<-class2Test 
-    else 
-      closedClasses[[length(closedClasses)+1]]<-class2Test
-  }
-  summaryMc<-list(closedClasses=closedClasses, 
-                  transientClasses=transientClasses)
-  return(summaryMc)
-}
-*/
 
 //here the kernel function to compute the first passage
 // [[Rcpp::export(.firstpassageKernelRcpp)]]
 NumericMatrix firstpassageKernel(NumericMatrix P, int i, int n){
-  arma::mat G(P.begin(), P.nrow(), P.ncol());
+//  Rcout << "P = " << P << std::endl;
+//  Rf_PrintValue(P);
+  int r = P.nrow(), c = P.ncol();
+//  arma::mat G(P.begin(), r, c, false);
+  arma::mat G(P.begin(), P.nrow(), P.ncol(), false);
+//  Rcout << "G = " << G << std::endl;
   arma::mat Pa = G;
   arma::mat H(n, P.ncol()); //here Thoralf suggestion
-  H.insert_rows(0, G.row(0)); //initializing the first row  
+//  Rcout << "H = " << H << std::endl;
+  //initializing the first row
+  for(int j = 0; j < G.n_cols; j++)
+    H(0, j) = G(i-1, j);
+//  Rcout << "H = " << H << std::endl;
   arma::mat E = 1 - arma::eye(P.ncol(), P.ncol());
-  
+
   for (int m = 1; m < n; m++) {
-    G = Pa * (G*E);
+//    Rcout << "G%E = " << G%E << std::endl;
+    G = Pa * (G%E);
+//    Rcout << "G = " << G << std::endl;
     //H<-rbind(H,G[i,]) //removed thanks to Thoralf 
-    H.insert_rows(m, G.row(i)); //here Thoralf suggestion
+    for(int j = 0; j < G.n_cols; j ++) 
+      H(m, j) = G(i-1, j);
+//    Rcout << "H = " << H << std::endl;
   }
-  return wrap(H);
+  NumericMatrix R = wrap(H);
+//  Rf_PrintValue(R);
+  return R;
 }
-/*
-#@ Tae: move in Rcpp
-#here the kernel function to compute the first passage
-.firstpassageKernel<-function(P,i,n){
-  G<-P
-  H <- matrix(NA, ncol=dim(P)[2], nrow=n) #here Thoralf suggestion
-  H[1,]<-P[i,] #initializing the first row
-  E<-1-diag(size(P)[2])
-  for (m in 2:n) {
-    G<-P%*%(G*E)
-    #H<-rbind(H,G[i,]) #removed thanks to Thoralf 
-    H[m,] <- G[i,] #here Thoralf suggestion
-  }
-  return(H)
-}
-*/
 
 // greatest common denominator: to be moved in Rcpp
 // [[Rcpp::export(.gcdRcpp)]]
@@ -328,33 +282,7 @@ double gcd (int f, int s) {
 	}
 	return g;
 }
-/* 
-# greatest common denominator: to be moved in Rcpp
-.gcd = function(f,s) {
-  
-  f <- abs(f)
-  s <- abs(s)
-  
-  n <- min(f,s)
-  N <- max(f,s)
-  
-	if (n==0) {
-		g=N
-	}
-	else {
-		u=1
-		while (u!=0) {
-			u=N%%n
-			if (u==0) {
-				g=n
-			}
-			N=n
-			n=u
-		}
-	}
-	return(g)
-}
-*/
+
 
 /*** R
 library(matlab)

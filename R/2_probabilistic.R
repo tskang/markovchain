@@ -57,7 +57,6 @@
     }
     if(!is.null(proposedCommClass)) classesList[[length(classesList)+1]]<-proposedCommClass
   }
-  print(classesList)
   return(classesList)
 }
 
@@ -81,7 +80,8 @@ is.accessible<-function(object, from, to)
   statesNames<-states(object)
   fromPos<-which(statesNames==from)
   toPos<-which(statesNames==to)
-  R<-.commStatesFinder(object@transitionMatrix)
+#   R<-.commStatesFinder(object@transitionMatrix)
+  R<-.commStatesFinderRcpp(object@transitionMatrix)
   if(R[fromPos,toPos]==TRUE) out<-TRUE
   return(out)
 }
@@ -138,7 +138,8 @@ firstPassage<-function(object,state,n)
   P<-object@transitionMatrix
   stateNames<-states(object)
   i<-which(stateNames==state)
-  outMatr<-.firstpassageKernel(P=P,i=i,n=n)
+#   outMatr<-.firstpassageKernel(P=P,i=i,n=n)
+  outMatr<-.firstpassageKernelRcpp(P=P,i=i,n=n)
   colnames(outMatr)<-stateNames
   rownames(outMatr)<-1:n
   return(outMatr)
