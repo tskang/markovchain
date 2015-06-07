@@ -215,7 +215,7 @@ setMethod("transientStates","markovchain",
 		function(object) {
 			out <- character()
 			matr <- object@transitionMatrix #extract the byrow transition matrix
-			temp <- .commclassesKernel(matr)
+			temp <- .commclassesKernelRcpp(matr)
 			index <- which(temp$v==FALSE)
 			if(length(index)>0) out <- names(temp$v[index])
 			return(out)
@@ -326,7 +326,7 @@ setMethod("canonicForm","markovchain",
           function(object)
           {
             P <- object@transitionMatrix
-            comclasList <- .commclassesKernel(P)
+            comclasList <- .commclassesKernelRcpp(P)
             vu <- comclasList$v
 			
             u <- find(vu==TRUE)
@@ -359,7 +359,7 @@ setMethod("canonicForm","markovchain",
 # lists: closed, transient classes, irreducibility, absorbint, transient states
 setMethod("summary", signature(object="markovchain"),
 		function(object){
-			outs <- .summaryKernel(object)
+			outs <- .summaryKernelRcpp(object)
 			cat(object@name," Markov chain that is composed by:","\n")
 			check <- length(outs$closedClasses)
 			cat("Closed classes:","\n")
