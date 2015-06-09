@@ -119,27 +119,29 @@ is.irreducible<-function(object)
 
 #@ Tae: move in Rcpp
 #here the kernel function to compute the first passage
-# .firstpassageKernel<-function(P,i,n){
-#   G<-P
-#   H <- matrix(NA, ncol=dim(P)[2], nrow=n) #here Thoralf suggestion
-#   H[1,]<-P[i,] #initializing the first row
-#   E<-1-diag(size(P)[2])
-#   for (m in 2:n) {
-#     G<-P%*%(G*E)
-#     #H<-rbind(H,G[i,]) #removed thanks to Thoralf 
-#     H[m,] <- G[i,] #here Thoralf suggestion
-#   }
-#   return(H)
-# }
+.firstpassageKernel<-function(P,i,n){
+  G<-P
+  H <- matrix(NA, ncol=dim(P)[2], nrow=n) #here Thoralf suggestion
+  H[1,]<-P[i,] #initializing the first row
+  E<-1-diag(size(P)[2])
+  for (m in 2:n) {
+    G<-P%*%(G*E)
+    #H<-rbind(H,G[i,]) #removed thanks to Thoralf 
+    H[m,] <- G[i,] #here Thoralf suggestion
+  }
+  return(H)
+}
 
 firstPassage<-function(object,state,n)
 {
   P<-object@transitionMatrix
   stateNames<-states(object)
   i<-which(stateNames==state)
+#   outMatr<-.firstpassageKernel(P=P,i=i,n=n)
   outMatr<-.firstpassageKernelRcpp(P=P,i=i,n=n)
   colnames(outMatr)<-stateNames
   rownames(outMatr)<-1:n
+#   print(outMatr)
   return(outMatr)
 }
 #periodicity
