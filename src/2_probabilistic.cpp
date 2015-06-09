@@ -3,86 +3,59 @@
 #include <RcppArmadillo.h>
 using namespace Rcpp;
 
-//List commclassesKernel(NumericMatrix P){
 // [[Rcpp::export(.commclassesKernelRcpp)]]
 extern "C" SEXP commclassesKernel(NumericMatrix P){
-//  Rf_PrintValue(P);
   unsigned int m = P.ncol(), n;
   CharacterVector stateNames = rownames(P);
   std::vector<int> a;
   arma::vec b, c, d;
   arma::mat T = arma::zeros(m, m);
-//  std::cout << T << std::endl;
   unsigned int i = 0;
   int oldSum, newSum, ai;
   while(i < m) {
     a.resize(0);
     a.push_back(i);
-//    a.resize(1);
-//    a[0] = i;
-//    std::cout << "i = " << i << ", a=" << a ;
-//    b = NumericVector(m);
     b = arma::zeros<arma::vec>(m);
     b[i] = 1;
-//    std::cout << "b = " << b << ", b[i]=" << b[i] << std::endl;
     newSum = 0;
     oldSum = 1;
-//    bool first = true;
     while(oldSum != newSum) {
       oldSum = 0;
       for(int j = 0; j < b.size(); j ++)
         if(b[j] > 0) oldSum += (j + 1);
-//      std::cout << "b = " << b << std::endl;
-//      std::cout << "find(b>0) = " << find(b > 0) << std::endl;
       n = a.size();
-//      std::cout << "oldSum = " << oldSum << ", n=" << n << std::endl;
       NumericVector temp; 
       NumericMatrix matr(n, m);
       for(unsigned int j = 0; j < n; j ++) {
         temp = P.row(a[j]);
-//        Rcout << "temp a[" << j << "] " << a[j] << " = ";
-//        Rf_PrintValue(temp);
         for(int k = 0; k < temp.size(); k++) 
           matr(j, k) = temp[k];
       }
-//      Rcout << "matr = " << std::endl;
-//      Rf_PrintValue(matr);
       c = arma::zeros<arma::vec>(m);
       for(int j = 0; j < m; j++) 
         for(int k = 0; k < n; k++)
           c[j] += matr(k, j);
-//      c = colSums(matr);
-//      Rcout << "colSums = " << c << std::endl;
       newSum = 0;
       a.resize(0);
-//      Rcout << "a.size = " << a.size() << std::endl;
       for(int j = 0; j < b.size(); j++) {
         if(c[j] > 0) {
           b[j] = 1; a.push_back(j);
         }
         if(b[j] > 0) newSum += (j + 1);
       }
-//      Rcout << "a.size = " << a.size() << std::endl;
     }
     for(unsigned int j = 0; j < b.size(); j ++)
       T(i, j) = b[j];
     i++;
   }
-//  std::cout << "T = " << T << std::endl;
   arma::mat F = arma::trans(T);
-//  std::cout << "T = " << T.n_rows << " x " << T.n_cols << std::endl;
-//  std::cout << "F = " << F.n_rows << " x " << F.n_cols << std::endl;
   LogicalMatrix C;
-  arma::mat Ca(T.n_rows, T.n_cols);// = (T > 0);// & (F > 0);
-//  std::cout << "C created: " << Ca.n_rows << " x " << Ca.n_cols << std::endl;
+  arma::mat Ca(T.n_rows, T.n_cols);
   for(i = 0; i < T.n_rows; i ++) {
-//   std::cout << "i = " << i << std::endl;
    for(unsigned int j = 0; j < T.n_cols; j++) {
       Ca(i, j) = (T(i, j) > 0 && F(i, j) > 0);
    }
-//   std::cout << "i end = " << i << std::endl;
   }
-//  std::cout << "C filled" << std::endl;
   LogicalVector v(T.n_cols);
   arma::mat tC = Ca.t();
   arma::mat tT = T.t();
@@ -93,13 +66,9 @@ extern "C" SEXP commclassesKernel(NumericMatrix P){
       if(tC(i, j) == tT(i, j)) sums[j] ++;
     v[j] = (sums[j] == m);
   }
-//  std::cout << "v created" << std::endl; 
-//  std::cout << "Ca: " << Ca << std::endl;
   C = as<LogicalMatrix>(wrap(Ca));
   C.attr("dimnames") = List::create(stateNames, stateNames);
   v.names() = stateNames;
-//  Rf_PrintValue(C);
-//  Rf_PrintValue(v);
   return List::create(_["C"] = C, _["v"] = v);
 }
 
@@ -109,18 +78,14 @@ List communicatingClasses(LogicalMatrix adjMatr)
 {
   int len = adjMatr.nrow();
   List classesList;
-//  Rf_PrintValue(adjMatr);
-//  Rf_PrintValue(rownames(adjMatr));
   CharacterVector rnames = rownames(adjMatr);
   for(int i = 0; i < len; i ++) {
     bool isNull = false;
     LogicalVector row2Check = adjMatr(i, _);
-//    Rf_PrintValue(row2Check);    
     CharacterVector proposedCommClass;
     for(int j = 0; j < row2Check.size(); j++) {
       if(row2Check[j] == true) {
         String rname = rnames[j];
-//        Rcout << (std::string)rname << std::endl;
         proposedCommClass.push_back(rname);
       }
     }
@@ -128,36 +93,23 @@ List communicatingClasses(LogicalMatrix adjMatr)
       for(int j = 0; j < classesList.size(); j ++) {
         bool check = false;        
         CharacterVector cv = classesList[j];
-//        Rf_PrintValue(cv);
         std::set<std::string> s1, s2;
-//        std::cout << "before insert: " << cv.size() << " " << proposedCommClass.size() << std::endl;
         for(int k = 0; k < cv.size(); k ++) {
           s1.insert(as<std::string>(cv[k]));
-//          std::cout << "s1 inserted " << cv[k] << std::endl;
           if(proposedCommClass.size() > k) {
             s2.insert(as<std::string>(proposedCommClass[k]));
-//            std::cout << "s2 inserted " << proposedCommClass[k] << std::endl;
           }
         }
-//        for(std::set<std::string>::iterator it = s1.begin(); it != s1.end(); it++)
-//          std::cout << *it << " ";
-//        std::cout << std::endl;
-//        for(std::set<std::string>::iterator it = s2.begin(); it != s2.end(); it++)
-//          std::cout << *it << " ";
-//        std::cout << std::endl;
         check = std::equal(s1.begin(), s1.end(), s2.begin());
-//        std::cout << check << std::endl;
         if(check) {
           isNull = true;
           break;
         }
       }
     }
-//    if(!Rf_isNull(proposedCommClass) && proposedCommClass.size() > 0) 
     if(!isNull) 
       classesList.push_back(proposedCommClass);
   }
-//  Rf_PrintValue(classesList);
   return classesList;
 }
 
@@ -206,7 +158,7 @@ List summaryKernel(S4 object)
   CharacterVector ns = v.names();
   CharacterVector transientStates; 
   for(int i = 0; i < v.size(); i++) {
-    if(v[i] == false)
+    if(bool(v[i]) == false)
       transientStates.push_back(ns[i]);
   }
   List closedClasses, transientClasses;
@@ -227,36 +179,25 @@ List summaryKernel(S4 object)
 //here the kernel function to compute the first passage
 // [[Rcpp::export(.firstpassageKernelRcpp)]]
 NumericMatrix firstpassageKernel(NumericMatrix P, int i, int n){
-//  Rcout << "P = " << P << std::endl;
-//  Rf_PrintValue(P);
   int r = P.nrow(), c = P.ncol();
-//  arma::mat G(P.begin(), r, c, false);
   arma::mat G(P.begin(), P.nrow(), P.ncol(), false);
-//  Rcout << "G = " << G << std::endl;
   arma::mat Pa = G;
   arma::mat H(n, P.ncol()); //here Thoralf suggestion
-//  Rcout << "H = " << H << std::endl;
   //initializing the first row
   for(int j = 0; j < G.n_cols; j++)
     H(0, j) = G(i-1, j);
-//  Rcout << "H = " << H << std::endl;
   arma::mat E = 1 - arma::eye(P.ncol(), P.ncol());
 
   for (int m = 1; m < n; m++) {
-//    Rcout << "G%E = " << G%E << std::endl;
     G = Pa * (G%E);
-//    Rcout << "G = " << G << std::endl;
-    //H<-rbind(H,G[i,]) //removed thanks to Thoralf 
     for(int j = 0; j < G.n_cols; j ++) 
       H(m, j) = G(i-1, j);
-//    Rcout << "H = " << H << std::endl;
   }
   NumericMatrix R = wrap(H);
-//  Rf_PrintValue(R);
   return R;
 }
 
-// greatest common denominator: to be moved in Rcpp
+// greatest common denominator
 // [[Rcpp::export(.gcdRcpp)]]
 double gcd (int f, int s) {
   int g, n, N, u;
@@ -283,68 +224,61 @@ double gcd (int f, int s) {
 	return g;
 }
 
+// [[Rcpp::export]]
+double predictiveDistribution(CharacterVector stringchar, CharacterVector newData, NumericMatrix hyperparam = NumericMatrix(1, 1)) {
+  // construct list of states
+  CharacterVector elements = stringchar;
+  for(int i = 0; i < newData.size(); i++)
+    elements.push_back(newData[i]);
+  
+  elements = unique(elements).sort();
+  int sizeMatr = elements.size();
+  
+  // if no hyperparam argument provided, use default value of 1 for all 
+  if(hyperparam.nrow() == 1 && hyperparam.ncol() == 1){
+    NumericMatrix temp(sizeMatr, sizeMatr);
+    for(int i = 0; i < sizeMatr; i++)
+      for(int j = 0; j < sizeMatr; j++)
+        temp(i, j) = 1;
+    hyperparam = temp;
+  }
+  
+  // validity check
+  if(hyperparam.nrow() != sizeMatr || hyperparam.ncol() != sizeMatr) 
+    stop("Dimensions of the hyperparameter matrix are inconsistent");
+  
+  NumericMatrix freqMatr(sizeMatr), newFreqMatr(sizeMatr);
 
-/*** R
-library(matlab)
-i <- 1
-size(i)
-n <- size(i)[2]
-n
-matr <- ones(3, 3)
-c <- colSums(matr)
-c
-d <- find(c)
-d
-find(d > 1)
-a=i
-a
-a <- d
-a
-size(d)
-n <- size(d)[2]
-n
-b <- zeros(1, 5)
-b[1,d] <- ones(1, n)
-b
-matr <- ones(4, 4)
-matr[a,]
-as.numeric(matr[a,])
-apply(t(matr) == t(matr), 2, sum)
-apply(t(matr) == t(matr), 2, sum) == 3
+  double predictiveDist = 0.; // log of the predictive probability
 
-#matr > 0
-#(matr > 0) & (matr < 0)
-#dim(matr)
-#dim(matr)[1]
-#sign(matr)
-#1-diag(3)
-#matr[2, 1] = 21
-#matr[2, 2] = 22
-#matr[[2]]
+  // populate frequeny matrix for old data; this is used for inference 
+  int posFrom, posTo;
+  for(int i = 0; i < stringchar.size() - 1; i ++) {
+    for (int j = 0; j < sizeMatr; j ++) {
+      if(stringchar[i] == elements[j]) posFrom = j;
+      if(stringchar[i + 1] == elements[j]) posTo = j;
+    }
+    freqMatr(posFrom,posTo)++;
+  }
+  
+  // frequency matrix for new data
+  for(int i = 0; i < newData.size() - 1; i ++) {
+    for (int j = 0; j < sizeMatr; j ++) {
+      if(newData[i] == elements[j]) posFrom = j;
+      if(newData[i + 1] == elements[j]) posTo = j;
+    }
+    newFreqMatr(posFrom,posTo)++;
+  }
+ 
+  for (int i = 0; i < sizeMatr; i++) {
+    double rowSum = 0, newRowSum = 0, paramRowSum = 0;
+    for (int j = 0; j < sizeMatr; j++){ 
+      rowSum += freqMatr(i, j), newRowSum += newFreqMatr(i, j), paramRowSum += hyperparam(i, j);
+      predictiveDist += lgamma(freqMatr(i, j) + newFreqMatr(i, j) + hyperparam(i, j)) -
+                        lgamma(freqMatr(i, j) + hyperparam(i, j));
+    }
+    predictiveDist += lgamma(rowSum + paramRowSum) - lgamma(rowSum + newRowSum + paramRowSum);
+  }
 
-matr <- matrix(
-c(TRUE,  TRUE, FALSE, FALSE, FALSE
-,  TRUE,  TRUE, FALSE, FALSE, FALSE
-, FALSE, FALSE,  TRUE,  TRUE, FALSE
-, FALSE, FALSE,  TRUE,  TRUE, FALSE
-, FALSE, FALSE, FALSE, FALSE,  TRUE)
-, nrow = 5, ncol = 5, byrow =TRUE
-)
-dimnames(matr) <- list(c("a","b","c", "d", "e"), c("a","b","c", "d", "e"))
-              
-library(markovchain)
-#.commStatesFinderRcpp(matr)
-#.commclassesKernel(zeros(2))
-matr <- matrix(
-  c(0.0, 0.3333333, 0.0, 0.6666667, 0.0
-  , 0.5, 0.0000000, 0.0, 0.0000000, 0.5
-  , 0.0, 0.0000000, 0.5, 0.5000000, 0.0
-  , 0.0, 0.0000000, 0.5, 0.5000000, 0.0
-  , 0.0, 0.0000000, 0.0, 0.0000000, 1.0
-  ), nrow = 5, byrow = TRUE,
-  , dimnames = list(c("a","b","c", "d", "e"), c("a","b","c", "d", "e"))
-)
-.commclassesKernelRcpp(matr)
-#.communicatingClassesRcpp(matr)
-
-*/
+  return exp(predictiveDist);
+}
